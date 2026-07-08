@@ -482,33 +482,33 @@ class ConverterApp(DnDCTk):
                                          command=self.start_conversion, state="disabled")
         self.convert_btn.pack(side="right", padx=(0, 12))
 
-        # Top header bar (above the scroll area) — holds the right-aligned chips
-        header = ctk.CTkFrame(self, fg_color="transparent", height=34)
-        header.pack(side="top", fill="x", padx=20, pady=(8, 0))
-        header.pack_propagate(False)
-        self.update_btn = ctk.CTkButton(header, text="Update suchen", width=118, height=26,
-                                        font=ctk.CTkFont(size=11),
-                                        fg_color=("gray75", "gray30"),
-                                        hover_color=("gray65", "gray40"),
-                                        command=self.check_for_updates)
-        self.update_btn.pack(side="right")
-        # Reset-size chip (packed left of Update only while a panel is enlarged)
-        self.reset_btn = ctk.CTkButton(header, text="⤢ Reset size", width=110, height=26,
-                                       font=ctk.CTkFont(size=11),
-                                       fg_color=("gray75", "gray30"),
-                                       hover_color=("gray65", "gray40"),
-                                       command=self.reset_layout)
-
         # Scrollable content area (everything else lives in here)
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(side="top", fill="both", expand=True)
         self.scroll.grid_columnconfigure(0, weight=1)
         c = self.scroll
 
+        # "Update suchen" lives at the TOP of the scrollable content, so it
+        # scrolls up and disappears when you scroll down.
+        upd_row = ctk.CTkFrame(c, fg_color="transparent")
+        upd_row.grid(row=0, column=0, padx=20, pady=(10, 0), sticky="ew")
+        self.update_btn = ctk.CTkButton(upd_row, text="Update suchen", width=118, height=26,
+                                        font=ctk.CTkFont(size=11),
+                                        fg_color=("gray75", "gray30"),
+                                        hover_color=("gray65", "gray40"),
+                                        command=self.check_for_updates)
+        self.update_btn.pack(side="right")
+        # "Reset size": top-LEFT corner overlay (out of Update's way), shown when enlarged.
+        self.reset_btn = ctk.CTkButton(self, text="⤢ Reset size", width=110, height=26,
+                                       font=ctk.CTkFont(size=11),
+                                       fg_color=("gray75", "gray30"),
+                                       hover_color=("gray65", "gray40"),
+                                       command=self.reset_layout)
+
         # Drop zone
         self.drop_zone = ctk.CTkFrame(c, height=90, fg_color=("gray85", "gray20"),
                                       corner_radius=12)
-        self.drop_zone.grid(row=0, column=0, padx=20, pady=(16, 8), sticky="ew")
+        self.drop_zone.grid(row=1, column=0, padx=20, pady=(16, 8), sticky="ew")
         self.drop_zone.grid_propagate(False)
         self.drop_label = ctk.CTkLabel(self.drop_zone, text="Drag a folder here  —  or",
                                        font=ctk.CTkFont(size=15))
@@ -519,7 +519,7 @@ class ConverterApp(DnDCTk):
 
         # File picker
         src_frame = ctk.CTkFrame(c)
-        src_frame.grid(row=1, column=0, padx=20, pady=8, sticky="ew")
+        src_frame.grid(row=2, column=0, padx=20, pady=8, sticky="ew")
         src_frame.grid_columnconfigure(0, weight=1)
 
         head = ctk.CTkFrame(src_frame, fg_color="transparent")
@@ -563,7 +563,7 @@ class ConverterApp(DnDCTk):
 
         # Presets
         preset_row = ctk.CTkFrame(c, fg_color="transparent")
-        preset_row.grid(row=2, column=0, padx=20, pady=(4, 0), sticky="ew")
+        preset_row.grid(row=3, column=0, padx=20, pady=(4, 0), sticky="ew")
         ctk.CTkLabel(preset_row, text="Preset:", font=bold14).pack(side="left", padx=(0, 10))
         names = list(self.presets.keys()) or ["(none)"]
         self.preset_menu = ctk.CTkOptionMenu(preset_row, values=names, width=240,
@@ -579,7 +579,7 @@ class ConverterApp(DnDCTk):
 
         # Target
         target_row = ctk.CTkFrame(c, fg_color="transparent")
-        target_row.grid(row=3, column=0, padx=20, pady=(8, 0), sticky="ew")
+        target_row.grid(row=4, column=0, padx=20, pady=(8, 0), sticky="ew")
         ctk.CTkLabel(target_row, text="Convert to:", font=bold14).pack(side="left", padx=(0, 8))
         self.target_menu = ctk.CTkOptionMenu(target_row, values=TARGET_FORMATS, width=120,
                                              command=self.on_target_change)
@@ -588,7 +588,7 @@ class ConverterApp(DnDCTk):
 
         # Video options
         self.video_frame = ctk.CTkFrame(c)
-        self.video_frame.grid(row=4, column=0, padx=20, pady=8, sticky="ew")
+        self.video_frame.grid(row=5, column=0, padx=20, pady=8, sticky="ew")
         ctk.CTkLabel(self.video_frame, text="Video",
                      font=ctk.CTkFont(size=13, weight="bold")).grid(
             row=0, column=0, columnspan=8, padx=12, pady=(8, 2), sticky="w")
@@ -605,7 +605,7 @@ class ConverterApp(DnDCTk):
 
         # Audio options
         self.audio_frame = ctk.CTkFrame(c)
-        self.audio_frame.grid(row=5, column=0, padx=20, pady=8, sticky="ew")
+        self.audio_frame.grid(row=6, column=0, padx=20, pady=8, sticky="ew")
         ctk.CTkLabel(self.audio_frame, text="Audio",
                      font=ctk.CTkFont(size=13, weight="bold")).grid(
             row=0, column=0, columnspan=9, padx=12, pady=(8, 2), sticky="w")
@@ -638,7 +638,7 @@ class ConverterApp(DnDCTk):
 
         # Image options (shares row 4 with video; only one shows at a time)
         self.image_frame = ctk.CTkFrame(c)
-        self.image_frame.grid(row=4, column=0, padx=20, pady=8, sticky="ew")
+        self.image_frame.grid(row=5, column=0, padx=20, pady=8, sticky="ew")
         ctk.CTkLabel(self.image_frame, text="Image",
                      font=ctk.CTkFont(size=13, weight="bold")).grid(
             row=0, column=0, columnspan=8, padx=12, pady=(8, 2), sticky="w")
@@ -742,7 +742,7 @@ class ConverterApp(DnDCTk):
 
         # Console output (resizable)
         log_outer = ctk.CTkFrame(c, fg_color="transparent", height=self._heights["log"])
-        log_outer.grid(row=6, column=0, padx=20, pady=(8, 0), sticky="ew")
+        log_outer.grid(row=7, column=0, padx=20, pady=(8, 0), sticky="ew")
         log_outer.grid_propagate(False)
         log_outer.grid_columnconfigure(0, weight=1)
         log_outer.grid_rowconfigure(0, weight=1)
@@ -1063,9 +1063,10 @@ class ConverterApp(DnDCTk):
         bigger = any(self._heights[k] > self._default_heights[k] + 2
                      for k in self._heights)
         if bigger:
-            self.reset_btn.pack(side="right", padx=(0, 8))
+            self.reset_btn.place(relx=0.0, y=10, x=16, anchor="nw")
+            self.reset_btn.lift()
         else:
-            self.reset_btn.pack_forget()
+            self.reset_btn.place_forget()
 
     def reset_layout(self):
         for key, container in self._containers.items():
