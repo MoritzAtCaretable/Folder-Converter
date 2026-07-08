@@ -463,16 +463,8 @@ class ConverterApp(DnDCTk):
         # Pinned footer: status + progress on top, Convert / ■ Cancel lower-right
         footer = ctk.CTkFrame(self, fg_color="transparent")
         footer.pack(side="bottom", fill="x", padx=20, pady=(6, 14))
-        top_row = ctk.CTkFrame(footer, fg_color="transparent")
-        top_row.pack(side="top", fill="x")
-        self.status = ctk.CTkLabel(top_row, text="", text_color="gray", anchor="w")
-        self.status.pack(side="left", fill="x", expand=True)
-        self.update_btn = ctk.CTkButton(
-            top_row, text="⬇ Update", width=92, height=26,
-            fg_color="transparent", border_width=1,
-            text_color=("gray25", "gray75"), hover_color=("gray80", "gray25"),
-            command=self.update_app)
-        self.update_btn.pack(side="right")
+        self.status = ctk.CTkLabel(footer, text="", text_color="gray", anchor="w")
+        self.status.pack(side="top", fill="x")
         row = ctk.CTkFrame(footer, fg_color="transparent")
         row.pack(side="top", fill="x", pady=(6, 0))
         self.progress = ctk.CTkProgressBar(row)
@@ -490,18 +482,28 @@ class ConverterApp(DnDCTk):
                                          command=self.start_conversion, state="disabled")
         self.convert_btn.pack(side="right", padx=(0, 12))
 
+        # Top header bar (above the scroll area) — holds the right-aligned chips
+        header = ctk.CTkFrame(self, fg_color="transparent", height=34)
+        header.pack(side="top", fill="x", padx=20, pady=(8, 0))
+        header.pack_propagate(False)
+        self.update_btn = ctk.CTkButton(header, text="Update suchen", width=118, height=26,
+                                        font=ctk.CTkFont(size=11),
+                                        fg_color=("gray75", "gray30"),
+                                        hover_color=("gray65", "gray40"),
+                                        command=self.check_for_updates)
+        self.update_btn.pack(side="right")
+        # Reset-size chip (packed left of Update only while a panel is enlarged)
+        self.reset_btn = ctk.CTkButton(header, text="⤢ Reset size", width=110, height=26,
+                                       font=ctk.CTkFont(size=11),
+                                       fg_color=("gray75", "gray30"),
+                                       hover_color=("gray65", "gray40"),
+                                       command=self.reset_layout)
+
         # Scrollable content area (everything else lives in here)
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(side="top", fill="both", expand=True)
         self.scroll.grid_columnconfigure(0, weight=1)
         c = self.scroll
-
-        # Reset-size chip (top-right, hidden until a panel is enlarged)
-        self.reset_btn = ctk.CTkButton(self, text="⤢ Reset size", width=110, height=26,
-                                       font=ctk.CTkFont(size=11),
-                                       fg_color=("gray75", "gray30"),
-                                       hover_color=("gray65", "gray40"),
-                                       command=self.reset_layout)
 
         # Drop zone
         self.drop_zone = ctk.CTkFrame(c, height=90, fg_color=("gray85", "gray20"),
@@ -1061,9 +1063,9 @@ class ConverterApp(DnDCTk):
         bigger = any(self._heights[k] > self._default_heights[k] + 2
                      for k in self._heights)
         if bigger:
-            self.reset_btn.place(relx=1.0, y=8, x=-18, anchor="ne")
+            self.reset_btn.pack(side="right", padx=(0, 8))
         else:
-            self.reset_btn.place_forget()
+            self.reset_btn.pack_forget()
 
     def reset_layout(self):
         for key, container in self._containers.items():
@@ -1336,32 +1338,86 @@ class ConverterApp(DnDCTk):
 
     # -- Self-update (git pull + restart) ----------------------------------
 
-    def update_app(self):
+    def check_for_updates(self):
         repo = str(_app_dir())
         if not (Path(repo) / ".git").exists():
-            self.log("No git connection here yet — run the installer once "
-                     "(install.sh / install.bat); it enables updates.")
+            messagebox.showinfo(
+                "Update suchen",
+                "Diese Version ist noch nicht mit Git verbunden.\n\n"
+                "Führe einmal den Installer aus (install.sh bzw. install.bat) — "
+                "danach funktioniert die Update-Suche.")
             return
-        self.log("Checking for updates…")
-        self.update_btn.configure(state="disabled")
+        self.update_btn.configure(state="disabled", text="Suche …")
+        self.status.configure(text="Suche nach Updates …")
+        threading.Thread(target=self._check_updates_worker,
+                         args=(repo,), daemon=True).start()
+
+    def _git_env(self):
+        # Don't let git block on a credential prompt when there's no terminal.
+        env = dict(os.environ)
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        return env
+
+    def _check_updates_worker(self, repo):
+        result = {}
+        try:
+            f = subprocess.run(["git", "-C", repo, "fetch", "--quiet"],
+                               capture_output=True, text=True,
+                               env=self._git_env(), creationflags=NO_WINDOW)
+            if f.returncode != 0:
+                result["error"] = (f.stderr or f.stdout or "fetch failed").strip()
+            else:
+                c = subprocess.run(
+                    ["git", "-C", repo, "rev-list", "--count", "HEAD..@{u}"],
+                    capture_output=True, text=True, creationflags=NO_WINDOW)
+                if c.returncode != 0:
+                    result["error"] = (c.stderr or c.stdout or "compare failed").strip()
+                else:
+                    result["behind"] = int((c.stdout or "0").strip() or "0")
+        except FileNotFoundError:
+            result["error"] = "git ist nicht installiert."
+        except Exception as e:
+            result["error"] = str(e)
+        self.after(0, self._check_updates_done, repo, result)
+
+    def _check_updates_done(self, repo, result):
+        self.update_btn.configure(state="normal", text="Update suchen")
+        self.status.configure(text="")
+        if "error" in result:
+            messagebox.showwarning(
+                "Update suchen",
+                "Konnte nicht nach Updates suchen.\n\n" + result["error"])
+            return
+        behind = result.get("behind", 0)
+        if behind <= 0:
+            messagebox.showinfo("Update suchen",
+                                "Die App ist auf dem neuesten Stand.")
+            return
+        word = "Änderung" if behind == 1 else "Änderungen"
+        if messagebox.askyesno(
+                "Update verfügbar",
+                f"Eine neuere Version ist verfügbar ({behind} {word}).\n\n"
+                "Jetzt herunterladen und die App neu starten?"):
+            self._pull_and_restart(repo)
+
+    def _pull_and_restart(self, repo):
+        self.status.configure(text="Aktualisiere …")
         try:
             r = subprocess.run(["git", "-C", repo, "pull", "--ff-only"],
-                               capture_output=True, text=True, creationflags=NO_WINDOW)
-        except FileNotFoundError:
-            self.log("git isn't installed — can't update.")
-            self.update_btn.configure(state="normal")
+                               capture_output=True, text=True,
+                               env=self._git_env(), creationflags=NO_WINDOW)
+        except Exception as e:
+            messagebox.showwarning("Update", f"Update fehlgeschlagen:\n{e}")
+            self.status.configure(text="")
             return
         out = (r.stdout + "\n" + r.stderr).strip()
         self.log(out or "(no output)")
-        self.update_btn.configure(state="normal")
         if r.returncode != 0:
-            self.log("Update failed — see the message above.")
+            messagebox.showwarning("Update", "Update fehlgeschlagen:\n\n" + out)
+            self.status.configure(text="")
             return
-        if "up to date" in out.lower():
-            self.log("Already on the latest version.")
-            return
-        self.log("Updated — restarting…")
-        self.after(700, self._restart_app)
+        self.status.configure(text="Neustart …")
+        self.after(400, self._restart_app)
 
     def _restart_app(self):
         try:
