@@ -1,0 +1,14 @@
+# Machine-specific launchers (created locally by `python3 Converter.py --make-app`)
+Folder Converter.app/
+*.lnk
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Real-ESRGAN temp/aux (keep the binaries + models, ignore stray outputs)
+*.part
+
+# OS cruft
+.DS_Store
+Thumbs.db
