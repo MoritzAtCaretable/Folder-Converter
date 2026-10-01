@@ -93,6 +93,7 @@ SAMPLE_RATES = ["Keep", "48000", "44100", "96000"]
 CHANNELS = ["Keep", "1", "2"]
 
 OUTPUT_SUFFIX = " - converted"
+TRIM_FOLDER = "trim" + OUTPUT_SUFFIX
 PRESET_FILE = Path.home() / ".folder_converter" / "presets.json"
 
 # When launched via pythonw (no console), child processes would otherwise flash
@@ -112,6 +113,15 @@ def media_kind(ext):
     if ext in AUDIO_EXTS:
         return "audio"
     return "image"
+
+
+def fmt_time(seconds):
+    """75.25 -> '1:15,25' (German decimal comma, hours only when needed)."""
+    t = round(max(0.0, float(seconds)), 2)
+    h, rest = divmod(t, 3600)
+    m, s = divmod(rest, 60)
+    sec = f"{s:05.2f}".replace(".", ",")
+    return f"{int(h)}:{int(m):02d}:{sec}" if h else f"{int(m)}:{sec}"
 
 
 def _app_dir():
@@ -357,7 +367,21 @@ class ConversionEngine:
         self._ai_q = None
         self._ai_err = None
         self._upscaler_prepared = False
+        self._encoder_list = None
         atexit.register(self.shutdown_ai_worker)
+
+    def has_encoder(self, name):
+        """True if this ffmpeg build ships the encoder (Homebrew's lacks libvorbis)."""
+        if self._encoder_list is None:
+            try:
+                out = subprocess.run([self.ffmpeg, "-hide_banner", "-encoders"],
+                                     capture_output=True, text=True, errors="replace",
+                                     creationflags=NO_WINDOW).stdout
+            except Exception:
+                out = ""
+            self._encoder_list = {line.split()[1] for line in out.splitlines()
+                                  if len(line.split()) > 1 and len(line.split()[0]) == 6}
+        return name in self._encoder_list
 
     def cancel(self):
         self.cancel_event.set()
@@ -425,6 +449,69 @@ class ConversionEngine:
                 low = line.lower()
                 return any(tok in low for tok in tokens)
         return False
+
+    def probe_media(self, src):
+        """Duration and streams of a video/audio file, from ffmpeg's info output:
+        {"duration", "video", "audio", "width", "height", "acodec"}."""
+        result = subprocess.run(
+            [self.ffmpeg, "-hide_banner", "-i", str(src)],
+            capture_output=True, text=True, errors="replace", creationflags=NO_WINDOW)
+        info = {"duration": None, "video": False, "audio": False,
+                "width": None, "height": None, "acodec": ""}
+        m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", result.stderr)
+        if m:
+            info["duration"] = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+        for line in result.stderr.splitlines():
+            if "Video:" in line and "attached pic" not in line and not info["video"]:
+                info["video"] = True
+                d = re.search(r"\b(\d{2,5})x(\d{2,5})\b", line)
+                if d:
+                    info["width"], info["height"] = int(d.group(1)), int(d.group(2))
+            elif "Audio:" in line and not info["audio"]:
+                info["audio"] = True
+                c = re.search(r"Audio:\s*([\w-]+)", line)
+                info["acodec"] = c.group(1) if c else ""
+        return info
+
+    def build_trim_command(self, src, dst, start, end, info, fast=False, has_alpha=False):
+        """Cut [start, end] seconds out of src into dst (same format).
+        fast=True copies the streams (no re-encode, cuts snap to keyframes);
+        otherwise the cut is frame-accurate and re-encoded at high quality."""
+        ext = Path(dst).suffix.lower().lstrip(".")
+        cmd = [self.ffmpeg, "-hide_banner", "-y", "-ss", f"{start:.3f}", "-i", str(src),
+               "-t", f"{max(0.0, end - start):.3f}", "-map_metadata", "0"]
+        if fast:
+            cmd += ["-c", "copy", "-avoid_negative_ts", "make_zero"]
+        elif media_kind(ext) == "audio":
+            acodec = info.get("acodec", "")
+            cmd += ["-vn"] + {
+                "mp3": ["-c:a", "libmp3lame", "-q:a", "2"],
+                "opus": ["-c:a", "libopus", "-b:a", "160k"],
+                "ogg": (["-c:a", "libvorbis", "-q:a", "6"]
+                        if acodec == "vorbis" and self.has_encoder("libvorbis")
+                        else ["-c:a", "libopus", "-b:a", "160k"]),
+                "m4a": ["-c:a", "aac", "-b:a", "192k"],
+                "aac": ["-c:a", "aac", "-b:a", "192k"],
+                "flac": ["-c:a", "flac"],
+                # keep the bit depth of the source (pcm_s24le stays 24 bit)
+                "wav": ["-c:a", acodec if acodec.startswith("pcm_") else "pcm_s16le"],
+                "wma": ["-c:a", "wmav2", "-b:a", "192k"],
+            }.get(ext, [])
+        elif ext in ("mp4", "mov", "m4v", "mkv"):
+            cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
+                    "-c:a", "aac", "-b:a", "192k"]
+        elif ext == "webm" and has_alpha:
+            cmd += ["-c:v", "libvpx", "-pix_fmt", "yuva420p", "-auto-alt-ref", "0",
+                    "-crf", "20", "-b:v", "4M", "-c:a", "libopus", "-b:a", "160k"]
+        elif ext == "webm":
+            cmd += ["-c:v", "libvpx-vp9", "-crf", "24", "-b:v", "0", "-row-mt", "1",
+                    "-c:a", "libopus", "-b:a", "160k"]
+        else:  # avi / wmv / flv / mpg: the container's default codecs at high quality
+            cmd += ["-q:v", "2", "-q:a", "2"]
+        if ext in ("mp4", "mov", "m4v", "m4a"):
+            cmd += ["-movflags", "+faststart"]
+        cmd.append(str(dst))
+        return cmd
 
     def _ensure_rembg_model(self):
         """Pre-download the u2net model with visible progress in the app log.
@@ -940,3 +1027,57 @@ class ConversionEngine:
         self.cancel_event.clear()
         self.current_proc = None
         return {"ok": ok, "total": total, "out_root": str(out_root), "cancelled": cancelled}
+
+    def trim(self, folder, jobs, fast=False):
+        """Cut each (src, start, end) in `jobs` (paths below `folder`) and save it
+        in the same format under '<folder>/trim - converted/'. Originals stay
+        untouched, nothing gets overwritten. Returns like run(), plus a
+        per-file "results" list."""
+        folder = Path(folder)
+        out_root = folder / TRIM_FOLDER
+        total = len(jobs)
+        ok = 0
+        results = []
+        for i, (src, start, end) in enumerate(jobs, 1):
+            if self.cancel_event.is_set():
+                break
+            rel = src.relative_to(folder)
+            dst = out_root / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst = self._unique_path(dst)
+            self.status(f"Trimme {i}/{total}", src.name)
+            self.log(f"→ {rel}   {fmt_time(start)} – {fmt_time(end)} "
+                     f"(Länge {fmt_time(end - start)})")
+            info = self.probe_media(src)
+            has_alpha = (not fast and src.suffix.lower() == ".webm"
+                         and self.detect_has_alpha(src))
+            self.current_proc = subprocess.Popen(
+                self.build_trim_command(src, dst, start, end, info, fast, has_alpha),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                errors="replace", creationflags=NO_WINDOW)
+            _, err = self.current_proc.communicate()
+            rc = self.current_proc.returncode
+            self.current_proc = None
+            if self.cancel_event.is_set():
+                self.log(f"   gestoppt bei {rel} (diese Datei ist eventuell unvollständig)")
+                break
+            if rc == 0:
+                ok += 1
+                out = str(dst.relative_to(folder))
+                self.log(f"   ✓ {out}")
+                results.append({"rel": str(rel), "ok": True, "out": out})
+            else:
+                msg = self._ffmpeg_error(err)
+                self.log(f"   ✗ Fehlgeschlagen: {msg}")
+                results.append({"rel": str(rel), "ok": False, "error": msg})
+            self.progress(i, total)
+
+        cancelled = self.cancel_event.is_set()
+        if cancelled:
+            self.log(f"Abgebrochen nach {ok}/{total}.")
+        else:
+            self.log(f"✔ Fertig: {ok}/{total} getrimmt. Ausgabe in {out_root}")
+        self.cancel_event.clear()
+        self.current_proc = None
+        return {"ok": ok, "total": total, "out_root": str(out_root),
+                "cancelled": cancelled, "results": results}

@@ -18,6 +18,8 @@ Läuft auf **macOS** und **Windows**.
   - **Color-Key** – entfernt eine bestimmte Farbe (Pipette „From image" holt sie direkt aus dem Bild)
   - **KI (automatisch)** – erkennt das Motiv und schneidet den Rest frei; optional mit Alpha-Matting für feine Kanten
 - **Upscaling** (nur Bilder) per **Real-ESRGAN** – 2×/3×/4×, Modus für Fotos oder Illustrationen
+- **Trimmen** (Video und Audio) mit Vorschau: Videobild, Filmstreifen und Wellenform; zuschneiden
+  per Griffen oder Zeitfeldern, einzeln oder alle auf einmal
 - **Drag-&-Drop**: Ordner irgendwo aufs Fenster ziehen
 - **Presets** für wiederkehrende Einstellungen
 - **Doppelklick** auf eine Datei in der Liste öffnet sie in der Standard-App (Vorschau/QuickTime/VLC)
@@ -122,6 +124,22 @@ automatisch der Fall (auch bei ZIP-Download).
 Die Griffe unter Dateiliste und Protokoll ändern per Ziehen die Höhe, ein Doppelklick setzt
 sie zurück.
 
+### Trimmen
+
+1. Videos und/oder Audios in der Liste anhaken, dann **Trimmen** (rechts über der Liste).
+2. Alle ausgewählten Dateien erscheinen untereinander — Videos mit Vorschau und Filmstreifen,
+   Audios mit Wellenform. Den Bereich mit den blauen Griffen ziehen (oder ganz verschieben) oder
+   **Start**/**Ende** eintippen (`12,5`, `1:02,5` oder `1:02:03`). ▶ spielt die Auswahl ab.
+3. **Für alle Dateien**: Sekunden „Vom Anfang“ und „Vom Ende“ eintragen → **Auf alle anwenden**
+   schneidet bei jeder Datei gleich viel ab.
+4. **Trimmen** an einer Datei speichert nur diese, **Alle trimmen** unten rechts alle gekürzten.
+   Ergebnis im Unterordner `trim - converted` im gleichen Format; die Originale bleiben
+   unverändert.
+
+Standardmäßig wird bildgenau geschnitten und neu kodiert (hohe Qualität). **Ohne Neukodierung**
+ist viel schneller, schneidet Videos aber nur auf Keyframes genau. Formate, die das Fenster nicht
+selbst abspielen kann (z. B. MKV, AVI, WMA), bekommen automatisch eine Vorschau-Kopie.
+
 Beim ersten Einsatz der **KI-Hintergrundentfernung** lädt das Programm einmalig ein
 Modell (~170 MB, Fortschritt sichtbar). Das **Upscaling** braucht das mitgelieferte
 Real-ESRGAN (siehe unten).
@@ -163,7 +181,8 @@ die macOS-Quarantäne setzt sie beim ersten Upscaling selbst — es ist nichts v
 ## Was landet im Repository?
 
 Ins Git gehören: `Converter.py` (Start), `converter_core.py` (Konvertier-Logik),
-`webui_api.py` (Brücke zur Oberfläche), der Ordner `webui/` (HTML/CSS/JS, Schriften, Icon),
+`webui_api.py` (Brücke zur Oberfläche), `media_preview.py` (Vorschau fürs Trimmen), der Ordner
+`webui/` (HTML/CSS/JS, Schriften, Icon),
 `requirements.txt`, die Icons, `install.sh`/`install.bat`, `README.md` und der
 `realesrgan/`-Ordner. **Nicht** ins Git gehören die maschinenspezifischen Startdateien
 (`Folder Converter.app`, `*.lnk`) und Caches — die stehen bereits in der `.gitignore` und werden

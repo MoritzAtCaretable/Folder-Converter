@@ -31,7 +31,7 @@
   </div>
 
   <!-- ═══════════ Scroll-Inhalt ═══════════ -->
-  <div class="wrap ct-scroll">
+  <div class="wrap ct-scroll" id="mainView">
 
     <div class="row-top">
       <!-- Quellordner -->
@@ -84,7 +84,13 @@
           <div class="count" id="countText"></div>
         </div>
 
-        <div class="pills" id="pills"></div>
+        <div class="filesbar" id="filesbar" hidden>
+          <div class="pills" id="pills"></div>
+          <button class="btn quiet sm" id="btnTrim" disabled title="Ausgewählte Videos und Audios auf die gewünschte Länge zuschneiden">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"></path></svg>
+            <span id="trimLabel">Trimmen</span>
+          </button>
+        </div>
 
         <div class="tablebox">
           <div class="grid thead">
@@ -261,6 +267,36 @@
 
   </div>
 
+  <!-- ═══════════ Trimmen ═══════════ -->
+  <div class="wrap ct-scroll" id="trimView" hidden>
+    <div class="card trimhead">
+      <div class="cardhead">
+        <div class="t">
+          <h2>Trimmen</h2>
+          <div class="hint" id="trimSub"></div>
+        </div>
+        <button class="btn quiet sm" id="trimBack">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+          Zurück zur Übersicht
+        </button>
+      </div>
+      <div class="trimall">
+        <div class="tlabel">
+          <div class="lb">Für alle Dateien</div>
+          <div class="note">Schneidet bei jeder Datei so viel vom Anfang und vom Ende ab.</div>
+        </div>
+        <label class="num w150"><span class="cap">Vom Anfang</span><span class="val"><input id="allStart" data-t="float" inputmode="decimal" value="0"><span class="unit">s</span></span></label>
+        <label class="num w150"><span class="cap">Vom Ende</span><span class="val"><input id="allEnd" data-t="float" inputmode="decimal" value="0"><span class="unit">s</span></span></label>
+        <button class="btn turq tall" id="trimApplyAll">Auf alle anwenden</button>
+      </div>
+      <div class="trimopts">
+        <button class="check" id="trimFast"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Ohne Neukodierung</span><span class="aside">viel schneller, schneidet aber nur auf Keyframes genau</span></button>
+        <div class="note grow end" id="trimOut"></div>
+      </div>
+    </div>
+    <div class="clips" id="clips"></div>
+  </div>
+
   <!-- ═══════════ Gepinnter Footer ═══════════ -->
   <div class="foot">
     <div class="info">
@@ -274,8 +310,8 @@
       </div>
     </div>
     <button class="start" id="btnStart" disabled>
-      <svg viewBox="0 0 29.195 33.368" width="16" height="18" fill="currentColor"><path d="M27.658 13.99 4.718.428A3.111 3.111 0 0 0 0 3.12v27.117a3.125 3.125 0 0 0 4.718 2.692l22.94-13.555a3.125 3.125 0 0 0 0-5.384"></path></svg>
-      Konvertierung starten
+      <svg id="startIcon" viewBox="0 0 29.195 33.368" width="16" height="18" fill="currentColor"><path d="M27.658 13.99 4.718.428A3.111 3.111 0 0 0 0 3.12v27.117a3.125 3.125 0 0 0 4.718 2.692l22.94-13.555a3.125 3.125 0 0 0 0-5.384"></path></svg>
+      <span id="startLabel">Konvertierung starten</span>
     </button>
     <button class="stop" id="btnStop" title="Abbrechen" aria-label="Abbrechen" disabled>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>
@@ -295,6 +331,7 @@
 <div id="modal"></div>
 <div id="toast"></div>
 <script src="select.js"></script>
+<script src="trim.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

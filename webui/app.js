@@ -51,6 +51,7 @@ function toast(msg, kind = "") {
 /* Hinweis, der im Protokoll landet und kurz eingeblendet wird. */
 function notice(msg) { addLog([msg]); toast(msg, "err"); }
 
+const START_ICON = '<svg id="startIcon" viewBox="0 0 29.195 33.368" width="16" height="18" fill="currentColor"><path d="M27.658 13.99 4.718.428A3.111 3.111 0 0 0 0 3.12v27.117a3.125 3.125 0 0 0 4.718 2.692l22.94-13.555a3.125 3.125 0 0 0 0-5.384"></path></svg>';
 const CHECK_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>';
 const KIND_SVG = {
   video: '<svg viewBox="0 0 24 24" width="17" height="17"><path d="M4.6 5h10.8A2.6 2.6 0 0 1 18 7.6v1.9l3.1-2.1a.9.9 0 0 1 1.4.7v7.8a.9.9 0 0 1-1.4.7L18 14.5v1.9a2.6 2.6 0 0 1-2.6 2.6H4.6A2.6 2.6 0 0 1 2 16.4V7.6A2.6 2.6 0 0 1 4.6 5Z"></path></svg>',
@@ -300,6 +301,7 @@ async function deletePreset() {
 
 /* ---------- Ordner ---------- */
 function applyFolder(r) {
+  closeTrim();
   S.folder = r.folder;
   S.files = r.files || [];
   S.filter = "Alle"; S.sel.clear(); S.anchor = -1;
@@ -362,6 +364,7 @@ function renderFiles() {
   for (const f of S.files) counts["." + f.ext] = (counts["." + f.ext] || 0) + 1;
   S.shown = S.filter === "Alle" ? S.files.slice() : S.files.filter(f => "." + f.ext === S.filter);
 
+  $("#filesbar").hidden = !S.files.length;
   $("#pills").innerHTML = S.files.length
     ? ["Alle", ...Object.keys(counts).sort()].map(x =>
         `<button class="pill${x === S.filter ? " on" : ""}" data-filter="${esc(x)}">${esc(x)}<span>${x === "Alle" ? S.files.length : counts[x]}</span></button>`).join("")
@@ -414,6 +417,7 @@ function updateSel() {
   $("#allBox").classList.toggle("on", all);
   $("#allBox").classList.toggle("part-on", part);
   $("#toggleAll").title = all ? "Auswahl aufheben" : "Alle auswählen";
+  updateTrimButton();
   updateFooter();
 }
 
@@ -485,7 +489,7 @@ function initList() {
   };
   document.addEventListener("keydown", (e) => {
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a" && !typing && !closeSheet && S.shown.length) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a" && !typing && !closeSheet && !T.open && S.shown.length) {
       e.preventDefault(); selectAll(true);
     }
   });
@@ -585,6 +589,8 @@ function setRunning(on) {
   $("#btnStop").disabled = !on;
   for (const id of ["btnUpdate", "btnPick", "btnBrowse"]) $("#" + id).disabled = on || (id === "btnUpdate" && S.updating);
   if (on) { S.phase = "idle"; $("#barFill").style.width = "0%"; $("#pct").textContent = "0%"; }
+  document.body.classList.toggle("busy", on);
+  updateTrimButton();
   updateFooter();
 }
 
@@ -593,10 +599,11 @@ function finish(o) {
   S.outcome = o;
   S.phase = o.state === "running" ? "idle" : o.state;
   if ($("#modal").dataset.tag === "stop") $(".sheet")?.dismiss();   // Lauf ist schon vorbei
-  const failed = (o.total || 0) - (o.ok || 0);
+  if (o.kind === "trim") trimResults(o);
+  const failed = (o.total || 0) - (o.ok || 0), verb = o.kind === "trim" ? "getrimmt" : "konvertiert";
   if (o.state === "done") {
-    toast(failed ? `${o.ok}/${o.total} konvertiert — ${failed} fehlgeschlagen (siehe Protokoll).`
-                 : `${o.ok}/${o.total} konvertiert.`, failed ? "err" : "ok");
+    toast(failed ? `${o.ok}/${o.total} ${verb} — ${failed} fehlgeschlagen (siehe Protokoll).`
+                 : `${o.ok}/${o.total} ${verb}.`, failed ? "err" : "ok");
   } else if (o.state === "cancelled") {
     toast(`Abgebrochen — ${o.ok}/${o.total} erledigt.`);
   } else if (o.state === "failed") {
@@ -613,19 +620,32 @@ function setBar(done, total) {
 
 function updateFooter(status) {
   const btn = $("#btnStart");
-  btn.disabled = S.running || !S.files.length;
+  if ($("#startLabel").textContent !== (T.open ? "Alle trimmen" : "Konvertierung starten")) {
+    $("#startLabel").textContent = T.open ? "Alle trimmen" : "Konvertierung starten";
+    $("#startIcon").outerHTML = T.open
+      ? ICON.scissors.replace("<svg ", '<svg id="startIcon" ').replace(/width="16" height="16"/, 'width="19" height="19"').replace('stroke-width="2"', 'stroke-width="2.4"')
+      : START_ICON;
+  }
+  btn.disabled = S.running || (T.open ? !T.clips.some(c => c.info) : !S.files.length);
   if (S.running) {
     if (status) { $("#state").textContent = status.title || "Läuft …"; $("#scope").textContent = status.text || ""; }
     return;
   }
   const n = selectedShown().length, o = S.outcome || {};
-  let title = "Bereit";
-  let text = !S.folder ? "Kein Ordner geladen"
+  // Ergebnis nur in der Ansicht zeigen, zu der der letzte Lauf gehört
+  const phase = (o.kind === "trim") === T.open ? S.phase : "idle";
+  let title = T.open ? "Trimmen" : "Bereit";
+  let text = T.open ? trimSummary()
+    : !S.folder ? "Kein Ordner geladen"
     : !S.files.length ? "Keine Mediendateien im Ordner"
     : `${n} von ${S.shown.length} ausgewählt → ${S.segs.target || ""}`;
-  if (S.phase === "done") { title = "Fertig"; text = `${o.ok}/${o.total} konvertiert — ${n} ausgewählt für den nächsten Lauf`; }
-  if (S.phase === "cancelled") { title = "Abgebrochen"; text = `${o.ok}/${o.total} vor dem Stopp erledigt`; }
-  if (S.phase === "failed") { title = "Fehlgeschlagen"; text = o.error || "Siehe Protokoll"; }
+  if (phase === "done") {
+    title = "Fertig";
+    text = T.open ? `${o.ok}/${o.total} getrimmt — gespeichert in „trim - converted“`
+                  : `${o.ok}/${o.total} konvertiert — ${n} ausgewählt für den nächsten Lauf`;
+  }
+  if (phase === "cancelled") { title = "Abgebrochen"; text = `${o.ok}/${o.total} vor dem Stopp erledigt`; }
+  if (phase === "failed") { title = "Fehlgeschlagen"; text = o.error || "Siehe Protokoll"; }
   $("#state").textContent = title;
   $("#scope").textContent = text;
   $("#scope").title = text;
@@ -804,10 +824,11 @@ async function boot() {
   $("#btnBrowse").onclick = chooseFolder;
   $("#btnUpdate").onclick = checkUpdate;
   $("#btnClearLog").onclick = () => { $("#log").innerHTML = ""; };
-  $("#btnStart").onclick = start;
+  $("#btnStart").onclick = () => (T.open ? trimAll() : start());
   $("#btnStop").onclick = askStop;
 
   initList();
+  initTrim();
   initDrop();
   initGrips();
   if (st.running) setRunning(true);

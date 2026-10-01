@@ -27,6 +27,7 @@ from functools import wraps
 from pathlib import Path
 
 import converter_core as core
+import media_preview as preview
 
 
 def _guard(fn):
@@ -58,6 +59,9 @@ class Api:
         self._progress = {"done": 0, "total": 0}
         self._outcome = {"id": "", "state": "idle"}
         self._picker = None                    # (Pfad, PIL-Bild) der Pipette
+        self._media = None                     # lokaler Server für die Trimm-Vorschau
+        self._probes: dict[Path, dict] = {}    # Medien-Infos je Datei
+        self._proxies: dict[Path, str] = {}    # Vorschau-Kopien je Datei
 
     # ------------------------------------------------------------- Fenster
 
@@ -81,6 +85,8 @@ class Api:
         if self._running:
             self._engine.cancel()
         self._engine.shutdown_ai_worker()
+        if self._media is not None:
+            self._media.close()
 
     # ------------------------------------------------------------- Zustand
 
@@ -137,6 +143,8 @@ class Api:
         with self._lock:
             self._folder = folder
             self._files = {str(p.relative_to(folder)): p for p in files}
+            self._probes.clear()
+            self._proxies.clear()
         found = (f"{len(files)} Mediendatei(en) gefunden." if files
                  else "keine Mediendateien gefunden.")
         self._log(f"Ordner geladen: {folder.name} — {found}")
@@ -252,6 +260,91 @@ class Api:
             self._picker = None
         return {}
 
+    # ------------------------------------------------------------- Trimmen
+
+    def _media_file(self, rel: str) -> Path:
+        path = self._file(rel)
+        if core.media_kind(path.suffix) == "image":
+            raise ValueError(f"{path.name} ist ein Bild — getrimmt werden Videos und Audios.")
+        return path
+
+    def _probe(self, path: Path) -> dict:
+        info = self._probes.get(path)
+        if info is None:
+            info = self._engine.probe_media(path)
+            if not info["duration"]:
+                raise ValueError(f"Die Länge von {path.name} lässt sich nicht lesen.")
+            self._probes[path] = info
+        return info
+
+    def _server(self) -> "preview.MediaServer":
+        with self._lock:
+            if self._media is None:
+                self._media = preview.MediaServer()
+            return self._media
+
+    @_guard
+    def trim_info(self, rel: str) -> dict:
+        """Länge, Spuren und Abspiel-Adresse einer Datei für die Trimm-Ansicht."""
+        path = self._media_file(rel)
+        info = self._probe(path)
+        return {**info, "kind": core.media_kind(path.suffix),
+                "url": self._proxies.get(path) or self._server().url(path)}
+
+    @_guard
+    def trim_waveform(self, rel: str, buckets: int = 1200) -> dict:
+        path = self._media_file(rel)
+        info = self._probe(path)
+        if not info["audio"]:
+            return {"peaks": []}
+        return {"peaks": preview.waveform(self._engine.ffmpeg, path, int(buckets),
+                                          info["duration"])}
+
+    @_guard
+    def trim_filmstrip(self, rel: str, count: int = 10) -> dict:
+        path = self._media_file(rel)
+        info = self._probe(path)
+        if not info["video"]:
+            return {"src": None}
+        return {"src": preview.filmstrip(self._engine.ffmpeg, path, info["duration"], count)}
+
+    @_guard
+    def trim_proxy(self, rel: str) -> dict:
+        """Abspielbare Vorschau-Kopie, wenn die WebView das Original nicht abspielt."""
+        path = self._media_file(rel)
+        if path not in self._proxies:
+            server = self._server()
+            out = preview.make_proxy(self._engine.ffmpeg, path, core.media_kind(path.suffix),
+                                     server.temp_dir(), uuid.uuid4().hex)
+            if out is None:
+                raise ValueError(f"Für {path.name} ließ sich keine Vorschau erstellen — "
+                                 "Trimmen geht trotzdem über die Zeitfelder.")
+            self._proxies[path] = server.url(out)
+        return {"url": self._proxies[path]}
+
+    @_guard
+    def trim_start(self, jobs: list, fast: bool = False) -> dict:
+        """jobs = [{"rel", "start", "end"}] in Sekunden."""
+        with self._lock:
+            if self._folder is None:
+                raise ValueError("Bitte zuerst einen Ordner wählen.")
+            folder = self._folder
+        planned = []
+        for j in jobs or []:
+            path = self._media_file(j.get("rel", ""))
+            duration = self._probe(path)["duration"]
+            start = max(0.0, float(j.get("start", 0)))
+            end = min(duration, float(j.get("end", duration)))
+            if end - start < 0.05:
+                raise ValueError(f"{path.name}: Der Start muss vor dem Ende liegen.")
+            planned.append((path, start, end))
+        if not planned:
+            raise ValueError("Keine Datei zum Trimmen ausgewählt.")
+        mode = "ohne Neukodierung" if fast else "genau, neu kodiert"
+        return self._launch("trim", [p for p, _, _ in planned], "Trimme",
+                            f"Trimme {len(planned)} Datei(en) ({mode}) …",
+                            lambda: self._engine.trim(folder, planned, bool(fast)))
+
     # ---------------------------------------------------------------- Lauf
 
     @_guard
@@ -262,8 +355,6 @@ class Api:
             raise ValueError("Bitte die Zahlenfelder prüfen — Auflösung, CRF, dB usw. "
                              "müssen Zahlen sein.")
         with self._lock:
-            if self._running:
-                raise ValueError("Es läuft bereits eine Konvertierung.")
             if self._folder is None:
                 raise ValueError("Bitte zuerst einen Ordner wählen.")
             files = [self._files[r] for r in (rels or []) if r in self._files]
@@ -271,23 +362,32 @@ class Api:
                 raise ValueError("Mindestens eine Datei auswählen (Kopfzeile anklicken "
                                  "für alle).")
             folder, target = self._folder, form["target"]
+            opts = core.conversion_opts(form)
+            return self._launch("convert", files, "Konvertiere",
+                                f"Konvertiere {len(files)} Datei(en) nach {target} …",
+                                lambda: self._engine.run(folder, files, target, opts))
+
+    def _launch(self, kind, files, verb, header, run) -> dict:
+        """Startet einen Lauf (Konvertieren oder Trimmen) im Hintergrund."""
+        with self._lock:
+            if self._running:
+                raise ValueError("Es läuft bereits ein Vorgang.")
             job = uuid.uuid4().hex
             self._running = True
             self._engine.cancel_event.clear()
-            self._status = {"title": f"Konvertiere 1/{len(files)}", "text": files[0].name}
+            self._status = {"title": f"{verb} 1/{len(files)}", "text": files[0].name}
             self._progress = {"done": 0, "total": len(files)}
-            self._outcome = {"id": job, "state": "running"}
+            self._outcome = {"id": job, "kind": kind, "state": "running"}
         self._log("─" * 40)
-        self._log(f"Konvertiere {len(files)} Datei(en) nach {target} …")
-        threading.Thread(target=self._worker,
-                         args=(job, folder, files, target, core.conversion_opts(form)),
+        self._log(header)
+        threading.Thread(target=self._worker, args=(job, kind, len(files), run),
                          daemon=True).start()
         return {"job": job, "total": len(files)}
 
-    def _worker(self, job, folder, files, target, opts) -> None:
-        outcome = {"id": job, "state": "failed", "ok": 0, "total": len(files)}
+    def _worker(self, job, kind, total, run) -> None:
+        outcome = {"id": job, "kind": kind, "state": "failed", "ok": 0, "total": total}
         try:
-            result = self._engine.run(folder, files, target, opts)
+            result = run()
             outcome.update(result, state="cancelled" if result["cancelled"] else "done")
         except FileNotFoundError as e:
             outcome["error"] = str(e)

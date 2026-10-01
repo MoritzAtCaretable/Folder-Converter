@@ -294,3 +294,74 @@ button{font:inherit;color:inherit}
      font-size:14.5px;max-width:440px;border-left:4px solid var(--ct_C1);text-wrap:pretty;transition:opacity .3s}
 .toast.ok{border-left-color:var(--ct_correct)}
 .toast.err{border-left-color:var(--ct_fail)}
+
+/* ---------- Trimmen ---------- */
+.filesbar{display:flex;align-items:flex-start;gap:12px;margin-top:16px}
+.filesbar .pills{flex:1;min-width:0;margin-top:0}
+.btn.isq{width:44px;height:44px;padding:0}
+.busy [data-a="trim"],.busy #trimApplyAll{opacity:.45;pointer-events:none}
+
+.trimhead .cardhead{align-items:center}
+.trimall{display:flex;align-items:flex-end;gap:12px;margin-top:18px;padding:14px 16px;border-radius:12px;border:1px solid var(--line)}
+.trimall .tlabel{flex:1;min-width:0;align-self:center}
+.trimall .tlabel .note{margin-top:2px}
+.trimall .btn{height:52px}
+.trimopts{display:flex;align-items:center;gap:16px;margin-top:14px}
+.note.end{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.clips{display:flex;flex-direction:column;gap:16px}
+.clip{padding:18px 22px 18px}
+.clip.loading .clipbody,.clip.broken .clipbody{opacity:.5;pointer-events:none}
+.cliphead{display:flex;align-items:center;gap:10px}
+.ckind{flex:none;width:44px;height:44px;border-radius:10px;background:var(--inset);display:flex;align-items:center;justify-content:center}
+.ckind svg{width:20px;height:20px;fill:var(--ct_B3_50)}
+.cliphead .t{flex:1;min-width:0;margin-left:2px}
+.cname{font-family:var(--ct_font_medium);font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cname span{color:var(--tx3)}
+.cliphead .meta{font-size:13.5px;color:var(--tx2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clip.broken .meta{color:var(--ct_fail)}
+.num.tc{width:118px;flex:none;padding-top:5px;padding-bottom:7px}
+.num.tc input{font-variant-numeric:tabular-nums}
+.len{width:86px;flex:none;padding:0 4px}
+.len .lv{font-family:var(--ct_font_medium);font-size:16px;margin-top:2px;font-variant-numeric:tabular-nums}
+.clip.changed .len .lv{color:var(--acc)}
+
+.clipbody{margin-top:14px}
+.clip.video .clipbody{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:center}
+.clip audio{display:none}
+.vidbox{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#0B1220}
+.vidbox video{display:block;width:100%;height:100%;object-fit:contain}
+.vmsg,.tmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;
+     text-align:center;font-size:13.5px;pointer-events:none}
+.vmsg{color:#C9D3E0}
+.tmsg{color:var(--tx2)}
+.timeline{min-width:0}
+.track{position:relative;border-radius:10px;background:var(--inset);overflow:hidden;cursor:pointer;user-select:none}
+.strip{height:64px;background-color:#DFE5EC;background-size:100% 100%;background-repeat:no-repeat}
+.wave{display:block;width:100%;height:96px}
+.clip.video .wave{height:44px}
+.clip.video.silent .wave{display:none}
+.shade{position:absolute;top:0;bottom:0;background:rgba(245,247,252,.8);pointer-events:none}
+.shade.l{left:0}
+.shade.r{right:0}
+.sel{position:absolute;top:0;bottom:0;border:2px solid var(--acc);border-radius:10px;cursor:grab;
+     background:rgba(74,79,196,.06)}
+.sel:active{cursor:grabbing}
+.hd{position:absolute;top:-2px;bottom:-2px;width:14px;background:var(--acc);cursor:ew-resize}
+.hd.l{left:-2px;border-radius:10px 0 0 10px}
+.hd.r{right:-2px;border-radius:0 10px 10px 0}
+.hd::after{content:"";position:absolute;left:6px;top:35%;bottom:35%;width:2px;border-radius:2px;background:rgba(255,255,255,.85)}
+.playhead{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ct_A);pointer-events:none;opacity:.75}
+.ticks{position:relative;height:20px;margin-top:4px;font-size:12px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.ticks span{position:absolute;top:2px;transform:translateX(-50%);white-space:nowrap}
+.ticks span:first-child{transform:none}
+.cstatus{margin-top:10px;font-size:14px;color:var(--tx2)}
+.cstatus:empty{display:none}
+.cstatus.ok{color:var(--ct_B5)}
+.cstatus.err{color:var(--ct_fail)}
+@media (max-width:1180px){
+  .clip.video .clipbody{grid-template-columns:220px minmax(0,1fr)}
+  .cliphead{flex-wrap:wrap}
+  .cliphead .t{flex-basis:100%;order:-1;margin:0 0 6px}
+  .ckind{display:none}
+}
