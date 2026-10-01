@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Folder Converter</title>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="select.css">
+</head>
+<body>
+<div class="shell">
+
+  <!-- ═══════════ Kopfzeile ═══════════ -->
+  <div class="head">
+    <img src="assets/brand/app-icon.png" alt="">
+    <div class="ttl">
+      <h1>Folder Converter</h1>
+      <div class="sub">Bilder, Videos und Audios ordnerweise konvertieren und anpassen</div>
+    </div>
+    <div class="tools">
+      <div class="badge" id="ffBadge">
+        <div class="dot" id="ffDot"></div>
+        <div class="lbl">FFmpeg</div>
+        <div class="val" id="ffVal">…</div>
+      </div>
+      <button class="btn quiet" id="btnUpdate">
+        <svg viewBox="0 0 42.717 42.688" width="16" height="16" fill="currentColor"><path d="M1.579,0H5.595A1.016,1.016,0,0,1,6.611,1.065l-.339,7.01A21.006,21.006,0,1,1,8.2,37.275,1.016,1.016,0,0,1,8.158,35.8l2.88-2.88a1.016,1.016,0,0,1,1.387-.047A14.907,14.907,0,1,0,9.9,13.366l8.6-.412a1.016,1.016,0,0,1,1.065,1.016v4.016A1.016,1.016,0,0,1,18.547,19H1.579A1.016,1.016,0,0,1,.562,17.985V1.016A1.016,1.016,0,0,1,1.579,0Z" transform="translate(-0.563)"></path></svg>
+        <span id="updateLabel">Update suchen</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════ Scroll-Inhalt ═══════════ -->
+  <div class="wrap ct-scroll">
+
+    <div class="row-top">
+      <!-- Quellordner -->
+      <div class="card">
+        <h2>Quellordner</h2>
+        <div class="hint">Ordner ins Fenster ziehen — Unterordner werden mitgelesen</div>
+        <div class="dropzone" id="folderEmpty">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--tx2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10M7.5 9.5 12 14l4.5-4.5M4 16v2.4A1.6 1.6 0 0 0 5.6 20h12.8a1.6 1.6 0 0 0 1.6-1.6V16"></path></svg>
+          <div class="t">Ordner hierher ziehen — oder</div>
+          <button class="btn turq pick" id="btnPick">Ordner wählen</button>
+        </div>
+        <div class="folderrow" id="folderLoaded" hidden>
+          <div class="field">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--tx2)"><path d="M3 7.2A2.2 2.2 0 0 1 5.2 5h3.5l1.9 2.4H19a2.2 2.2 0 0 1 2.2 2.2v7.6A2.2 2.2 0 0 1 19 19.4H5.2A2.2 2.2 0 0 1 3 17.2Z"></path></svg>
+            <div class="fname" id="folderName"></div>
+            <div class="path" id="folderPath"></div>
+          </div>
+          <button class="btn turq tall" id="btnBrowse">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2 2 0 0 1 5 5.5h3.6l1.8 2.2H19a2 2 0 0 1 2 2v7.8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M12 10.5v6M9 13.5l3-3 3 3"></path></svg>
+            Durchsuchen…
+          </button>
+        </div>
+      </div>
+
+      <!-- Preset -->
+      <div class="card">
+        <h2>Preset</h2>
+        <div class="hint">Speichert nur das Ausgabe-Rezept, nicht die Dateiauswahl</div>
+        <div class="presetrow">
+          <div class="field preset" data-select-field><select id="preset" aria-label="Preset laden" data-caption="Preset laden"></select></div>
+          <button class="btn save tall" id="btnSave" title="Aktuelle Einstellungen als Preset speichern">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" fill-rule="evenodd"><path d="M4.4 3.4h11.2l4 4v13.2H4.4V3.4Zm4.2 0v4.4h5.6V3.4H8.6Zm0 12.2v5h5.6v-5H8.6Z"></path></svg>
+            Speichern
+          </button>
+          <button class="btn danger square" id="btnDelete" title="Preset löschen" aria-label="Preset löschen">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V4.8h5V7M6.4 7l1 12.2h9.2L17.6 7"></path></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row-main">
+      <!-- ═══════════ Dateien ═══════════ -->
+      <div class="card files">
+        <div class="cardhead">
+          <div class="t">
+            <h2>Dateien</h2>
+            <div class="hint">Klick wählt aus, Doppelklick öffnet die Datei</div>
+          </div>
+          <div class="count" id="countText"></div>
+        </div>
+
+        <div class="pills" id="pills"></div>
+
+        <div class="tablebox">
+          <div class="grid thead">
+            <div class="cell-box" id="toggleAll" title="Alle auswählen">
+              <div class="box" id="allBox"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg><i class="part"></i></div>
+            </div>
+            <div>Datei</div><div>Format</div>
+          </div>
+          <div class="tbody ct-scroll" id="tbody"></div>
+        </div>
+        <div class="grip" data-grip="--files-h" data-min="100" title="Ziehen ändert die Höhe · Doppelklick setzt zurück"></div>
+      </div>
+
+      <!-- ═══════════ Einstellungen ═══════════ -->
+      <div class="card settings">
+        <h2>Konvertieren nach</h2>
+        <div class="hint">Zielformat wählen — die passenden Optionen erscheinen darunter</div>
+
+        <div class="targets">
+          <div>
+            <div class="cap">Video</div>
+            <div class="seg s3 big" data-k="target"><button data-v="webm">webm</button><button data-v="mov">mov</button><button data-v="mp4">mp4</button></div>
+          </div>
+          <div>
+            <div class="cap">Audio</div>
+            <div class="seg s3 big" data-k="target"><button data-v="mp3">mp3</button><button data-v="opus">opus</button><button data-v="wav">wav</button></div>
+          </div>
+          <div>
+            <div class="cap">Bild</div>
+            <div class="seg s3 big" data-k="target"><button data-v="png">png</button><button data-v="jpg">jpg</button><button data-v="webp">webp</button></div>
+          </div>
+        </div>
+
+        <!-- Video -->
+        <div class="sect" id="secVideo">
+          <h3>Video</h3>
+          <div class="line">
+            <button class="check grow" data-k="resize"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Größe ändern</span></button>
+            <div class="nums" data-dim="resize">
+              <label class="num w108"><span class="cap">Breite</span><span class="val"><input data-k="width" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+              <div class="x">×</div>
+              <label class="num w108"><span class="cap">Höhe</span><span class="val"><input data-k="height" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+            </div>
+          </div>
+          <div class="seg s3" data-k="resize_op" data-dim="resize"><button data-v="Crop">Zuschneiden</button><button data-v="Stretch">Strecken</button><button data-v="Fit (pad)">Einpassen (Rand)</button></div>
+          <div class="line">
+            <label class="num w150"><span class="cap">Qualität (CRF)</span><span class="val"><input data-k="crf" data-t="int" inputmode="numeric"></span></label>
+            <div class="note grow">Kleiner Wert = bessere Qualität, größere Datei. WebM mit Transparenz wird automatisch als VP8 mit Alpha kodiert.</div>
+          </div>
+        </div>
+
+        <!-- Audio -->
+        <div class="sect" id="secAudio">
+          <h3>Audio</h3>
+          <div class="line">
+            <button class="check grow" data-k="normalize"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Peak-Normalisierung</span></button>
+            <label class="num w140" data-dim="normalize"><span class="cap">Zielpegel</span><span class="val"><input data-k="target_db" data-t="float" inputmode="decimal"><span class="unit">dB</span></span></label>
+          </div>
+          <div class="g-audio">
+            <label class="num"><span class="cap">Bitrate</span><span class="val"><input data-k="bitrate" data-t="str" spellcheck="false"></span></label>
+            <div class="sfield" data-select-field><select data-k="samplerate" aria-label="Samplerate" data-caption="Samplerate">
+              <option value="Keep">Beibehalten</option><option value="48000">48000 Hz</option><option value="44100">44100 Hz</option><option value="96000">96000 Hz</option>
+            </select></div>
+            <div class="sfield" data-select-field><select data-k="channels" aria-label="Kanäle" data-caption="Kanäle">
+              <option value="Keep">Beibehalten</option><option value="1">1 · Mono</option><option value="2">2 · Stereo</option>
+            </select></div>
+          </div>
+          <div class="line">
+            <button class="check grow" data-k="trim"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Kürzen</span></button>
+            <div class="nums" data-dim="trim">
+              <label class="num w108"><span class="cap">Vom Anfang</span><span class="val"><input data-k="trim_start" data-t="float" inputmode="decimal"><span class="unit">s</span></span></label>
+              <label class="num w108"><span class="cap">Vom Ende</span><span class="val"><input data-k="trim_end" data-t="float" inputmode="decimal"><span class="unit">s</span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bild -->
+        <div class="sect" id="secImage">
+          <h3>Bild</h3>
+
+          <div class="line">
+            <button class="check grow" data-k="img_resize"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Größe ändern</span></button>
+            <div class="nums" data-dim="img_resize">
+              <label class="num w108"><span class="cap">Breite</span><span class="val"><input data-k="img_width" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+              <div class="x">×</div>
+              <label class="num w108"><span class="cap">Höhe</span><span class="val"><input data-k="img_height" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+            </div>
+          </div>
+          <div class="g-imgop">
+            <div class="sfield" data-dim="img_resize" data-select-field><select data-k="img_op" aria-label="Modus" data-caption="Modus">
+              <option value="Stretch">Strecken</option>
+              <option value="Fit (keep aspect)">Einpassen (Seitenverhältnis)</option>
+              <option value="Crop">Zuschneiden</option>
+              <option value="Width (keep aspect)">Nur Breite (Seitenverhältnis)</option>
+              <option value="Height (keep aspect)">Nur Höhe (Seitenverhältnis)</option>
+            </select></div>
+            <label class="num"><span class="cap">Qualität · jpg/webp</span><span class="val"><input data-k="img_quality" data-t="int" inputmode="numeric"><span class="unit">/ 100</span></span></label>
+          </div>
+
+          <div class="rule"></div>
+
+          <button class="check" data-k="img_trim"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Ränder beschneiden</span><span class="aside" id="trimHint">danach zurück auf Originalgröße gestreckt</span></button>
+          <div class="g4" data-dim="img_trim">
+            <label class="num"><span class="cap">Links</span><span class="val"><input data-k="img_trim_l" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+            <label class="num"><span class="cap">Rechts</span><span class="val"><input data-k="img_trim_r" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+            <label class="num"><span class="cap">Oben</span><span class="val"><input data-k="img_trim_t" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+            <label class="num"><span class="cap">Unten</span><span class="val"><input data-k="img_trim_b" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+          </div>
+
+          <div class="rule"></div>
+
+          <div class="line">
+            <div class="lb grow">Hintergrund entfernen</div>
+            <div class="seg auto" data-k="img_bg_mode"><button data-v="off">Aus</button><button data-v="color">Farbschlüssel</button><button data-v="ai">KI-Freistellung</button></div>
+          </div>
+          <div class="panel" id="panelColor">
+            <div class="colorrow">
+              <label class="num colorfield grow">
+                <span class="swatch" id="swatch"></span>
+                <span class="stackcol"><span class="cap">Schlüsselfarbe</span><input class="mono" data-k="img_bg_color" data-t="str" spellcheck="false" maxlength="16"></span>
+              </label>
+              <button class="btn quiet mid" id="btnColor">Wählen</button>
+              <button class="btn quiet mid" id="btnFromImage">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 7 4 4M4 20l1.2-4.2L14 7l3 3-8.8 8.8Z"></path><path d="M15.5 4.5a2.1 2.1 0 0 1 3 0l1 1a2.1 2.1 0 0 1 0 3L18 10l-4-4Z"></path></svg>
+                Aus Bild
+              </button>
+              <input type="color" id="colorInput" class="color-native" tabindex="-1" aria-hidden="true">
+            </div>
+            <div class="g2">
+              <label class="num"><span class="cap">Toleranz</span><span class="val"><input data-k="img_bg_similarity" data-t="float" inputmode="decimal"></span></label>
+              <label class="num"><span class="cap">Weiche Kante</span><span class="val"><input data-k="img_bg_blend" data-t="float" inputmode="decimal"></span></label>
+            </div>
+          </div>
+          <div class="panel" id="panelAi">
+            <div class="g2">
+              <label class="num"><span class="cap">Kante schrumpfen</span><span class="val"><input data-k="img_ai_erode" data-t="int" inputmode="numeric"><span class="unit">px</span></span></label>
+              <label class="num"><span class="cap">Weichzeichnen</span><span class="val"><input data-k="img_ai_feather" data-t="float" inputmode="decimal"><span class="unit">px</span></span></label>
+            </div>
+            <button class="check small" data-k="img_ai_matting"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Alpha Matting</span><span class="aside">feinere Kanten, langsamer</span></button>
+            <div class="g3" data-dim="img_ai_matting">
+              <label class="num"><span class="cap">Vordergrund</span><span class="val"><input data-k="img_ai_fg" data-t="int" inputmode="numeric"></span></label>
+              <label class="num"><span class="cap">Hintergrund</span><span class="val"><input data-k="img_ai_bg" data-t="int" inputmode="numeric"></span></label>
+              <label class="num"><span class="cap">Kantenbreite</span><span class="val"><input data-k="img_ai_mat_erode" data-t="int" inputmode="numeric"></span></label>
+            </div>
+            <div class="note small">Beim ersten KI-Lauf wird das Modell einmalig geladen (ca. 170 MB).</div>
+          </div>
+
+          <div class="rule"></div>
+
+          <button class="check" data-k="img_upscale"><span class="box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></span><span class="lb">Hochskalieren</span><span class="aside" id="esrganHint">Real-ESRGAN</span></button>
+          <div class="g-up" data-dim="img_upscale">
+            <div class="seg s3" data-k="img_upscale_factor"><button data-v="2">×2</button><button data-v="3">×3</button><button data-v="4">×4</button></div>
+            <div class="seg s2" data-k="img_upscale_mode"><button data-v="Photo">Foto</button><button data-v="Illustration">Illustration</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ Protokoll ═══════════ -->
+    <div class="card logcard">
+      <div class="cardhead end">
+        <div class="t">
+          <h2>Protokoll</h2>
+          <div class="hint">Live-Ausgabe der Konvertierung</div>
+        </div>
+        <button class="btn quiet sm" id="btnClearLog">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9.4 2.6h5.2l1 2h4.6v2.2H3.8V4.6h4.6l1-2ZM5.6 9h12.8l-1.1 12.4H6.7L5.6 9Z"></path></svg>
+          Log leeren
+        </button>
+      </div>
+      <div class="log ct-scroll" id="log"></div>
+      <div class="grip" data-grip="--log-h" data-min="80" title="Ziehen ändert die Höhe · Doppelklick setzt zurück"></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════ Gepinnter Footer ═══════════ -->
+  <div class="foot">
+    <div class="info">
+      <div class="line">
+        <div class="state" id="state">Bereit</div>
+        <div class="scope" id="scope"></div>
+      </div>
+      <div class="barrow">
+        <div class="bar"><div id="barFill"></div></div>
+        <div class="pct" id="pct">0%</div>
+      </div>
+    </div>
+    <button class="start" id="btnStart" disabled>
+      <svg viewBox="0 0 29.195 33.368" width="16" height="18" fill="currentColor"><path d="M27.658 13.99 4.718.428A3.111 3.111 0 0 0 0 3.12v27.117a3.125 3.125 0 0 0 4.718 2.692l22.94-13.555a3.125 3.125 0 0 0 0-5.384"></path></svg>
+      Konvertierung starten
+    </button>
+    <button class="stop" id="btnStop" title="Abbrechen" aria-label="Abbrechen" disabled>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Drop-Overlay -->
+<div class="dropov" id="dropOverlay" hidden>
+  <div class="dropcard">
+    <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11M7 9.5l5 5 5-5M3.5 15.5v3A2 2 0 0 0 5.5 20.5h13a2 2 0 0 0 2-2v-3"></path></svg>
+    <div class="dt">Ordner hier ablegen</div>
+    <div class="ds">Videos, Audios und Bilder werden automatisch erkannt</div>
+  </div>
+</div>
+
+<div id="modal"></div>
+<div id="toast"></div>
+<script src="select.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

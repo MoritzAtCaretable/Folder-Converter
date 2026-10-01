@@ -1,4 +1,8 @@
-customtkinter
-tkinterdnd2
+# Python-Pakete für den Folder Converter — install.sh / install.bat legen sie isoliert in .venv/ ab.
+
+# Oberfläche: natives Fenster mit HTML (WKWebView auf macOS, WebView2 auf Windows)
+pywebview>=5
+# Pipette „Aus Bild“ und WebP-Export
 pillow
+# KI-Hintergrundentfernung
 rembg[cpu]

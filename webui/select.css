@@ -1,0 +1,29 @@
+/* Auswahlmenüs im Caretable-Look (Bauteil aus TTS Studio, Akzent des Folder Converters). */
+.ct-select-host{display:block;min-width:0;position:relative}
+.ct-select-host select[hidden]{display:none!important}
+.ct-select-trigger{display:flex;align-items:center;gap:10px;width:100%;min-width:0;margin:0;border:0;border-radius:10px;
+  background:var(--inset);color:var(--tx);font:inherit;text-align:left;cursor:pointer;box-shadow:none;white-space:normal;
+  transition:filter .12s,box-shadow .12s}
+.ct-select-trigger:hover:not(:disabled){filter:brightness(.97)}
+.ct-select-trigger:focus-visible,.ct-select-trigger[aria-expanded=true]{outline:0;box-shadow:0 0 0 2px var(--acc)}
+.ct-select-trigger:disabled{opacity:.5;cursor:default}
+/* Preset-Feld: 52 px hoch wie die Knöpfe daneben */
+.field>.ct-select-trigger{height:52px;padding:0 16px}
+/* Kleine Auswahlfelder (Samplerate, Kanäle, Modus) wie die Zahlenfelder */
+.sfield>.ct-select-trigger{padding:7px 14px 9px}
+.ct-select-text{flex:1;min-width:0}
+.ct-select-caption{display:block;font-size:12.5px;line-height:1.2;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct-select-value{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--ct_font_medium);font-size:16px;margin-top:2px}
+.ct-select-arrow{width:14px;height:8px;flex:none;fill:var(--ct_A2);pointer-events:none;transition:transform .15s}
+.field .ct-select-arrow{width:17px;height:10px}
+.ct-select-trigger[aria-expanded=true] .ct-select-arrow{transform:rotate(180deg)}
+.ct-select-menu{position:fixed;z-index:10000;box-sizing:border-box;padding:6px;overflow:auto;overscroll-behavior:contain;
+  border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--tx);box-shadow:0 10px 30px #000f282b;
+  font-family:var(--ct_font_regular);font-size:15px;line-height:1.4;scrollbar-width:thin;scrollbar-color:var(--ct_E3) transparent}
+.ct-select-option{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:42px;padding:10px 12px;
+  border-radius:7px;cursor:pointer;overflow-wrap:anywhere}
+.ct-select-option[aria-selected=true]{color:var(--acc);background:var(--acc-soft);font-family:var(--ct_font_medium)}
+.ct-select-option.active{background:#E2E4F8;box-shadow:inset 0 0 0 1px #C3C6EF}
+.ct-select-option[aria-disabled=true]{display:none}
+.ct-select-check{flex:none;width:18px;text-align:center;color:var(--acc)}
+.ct-select-sr{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
