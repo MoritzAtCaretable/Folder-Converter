@@ -18,17 +18,24 @@ if not exist ".git" (
     where git >nul 2>&1 && call :graft
 )
 
-REM 3. Python-Pakete
+REM 3. venv + Pakete — ALLES isoliert im Ordner, nichts global.
+if not exist ".venv" (
+    echo -^> Virtuelle Umgebung anlegen...
+    python -m venv .venv
+)
 echo -^> Installiere Python-Pakete...
-python -m pip install --upgrade customtkinter tkinterdnd2 pillow "rembg[cpu]"
+call .venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 
-REM 4. Verknuepfung im Ordner erzeugen (nicht auf dem Desktop)
+REM 4. Verknuepfung mit dem venv-Python erzeugen, damit der Launcher aufs venv zeigt.
 echo -^> Erzeuge Verknuepfung...
-python Converter.py --make-app
+.venv\Scripts\python Converter.py --make-app
 
 echo.
 echo Fertig. 'Folder Converter.lnk' liegt in diesem Ordner.
-echo Kopiere sie auf den Desktop, wenn du magst.
+echo Alle Pakete stecken isoliert in .venv\ - es wurde nichts global installiert.
+echo Kopiere die Verknuepfung auf den Desktop, wenn du magst.
 echo (Falls Python gerade erst installiert wurde: Fenster schliessen, neu oeffnen und install.bat erneut starten.)
 pause
 exit /b 0

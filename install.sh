@@ -16,6 +16,7 @@ if ! command -v brew >/dev/null 2>&1; then
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 if [ -x /opt/homebrew/bin/brew ]; then eval "$(/opt/homebrew/bin/brew shellenv)"; fi
+if [ -x /usr/local/bin/brew ]; then eval "$(/usr/local/bin/brew shellenv)"; fi
 
 # 2. git, python, ffmpeg sicherstellen
 for pkg in git python ffmpeg; do
@@ -41,15 +42,34 @@ if [ ! -d ".git" ] && command -v git >/dev/null 2>&1; then
     fi
 fi
 
-# 4. Python-Pakete
-echo "→ Installiere Python-Pakete…"
-python3 -m pip install --break-system-packages --upgrade \
-    customtkinter tkinterdnd2 pillow "rembg[cpu]"
+# 4. venv + Pakete — ALLES isoliert im Ordner, nichts systemweit.
+#    Ein venv ist an seinen absoluten Pfad gebunden; wurde der Ordner verschoben,
+#    zeigt es ins Leere und wird neu gebaut.
+VENV_DIR="$(pwd)/.venv"
+if [ -d ".venv" ]; then
+    if [ -f ".venv/pyvenv.cfg" ] && grep -q "$VENV_DIR" ".venv/pyvenv.cfg" 2>/dev/null; then
+        :  # venv passt zum aktuellen Pfad
+    elif [ -x ".venv/bin/python" ] && .venv/bin/python -c '' 2>/dev/null; then
+        :  # venv funktioniert
+    else
+        echo "→ Vorhandenes venv passt nicht zu diesem Ordner (verschoben?) — wird neu gebaut…"
+        rm -rf .venv
+    fi
+fi
+if [ ! -d ".venv" ]; then
+    echo "→ Virtuelle Umgebung anlegen…"
+    python3 -m venv .venv
+fi
+echo "→ Pakete installieren…"
+.venv/bin/python -m pip install --upgrade pip >/dev/null
+.venv/bin/python -m pip install -r requirements.txt
 
-# 5. App-Bundle im Ordner erzeugen (nicht auf dem Desktop)
+# 5. App-Bundle im Ordner erzeugen — mit dem venv-Python, damit der Launcher
+#    aufs venv zeigt (nicht aufs globale Python).
 echo "→ Erzeuge 'Folder Converter.app'…"
-python3 Converter.py --make-app || true
+.venv/bin/python Converter.py --make-app || true
 
 echo ""
 echo "✓ Fertig. 'Folder Converter.app' liegt in diesem Ordner."
-echo "  Zieh sie auf den Desktop oder mach per Rechtsklick → 'Alias erzeugen' eine Verknüpfung."
+echo "  Alle Pakete stecken isoliert in .venv/ — es wurde nichts systemweit installiert."
+echo "  Zieh die App auf den Desktop oder mach per Rechtsklick → 'Alias erzeugen' eine Verknüpfung."

@@ -135,8 +135,9 @@ die macOS-Quarantäne setzt sie beim ersten Upscaling selbst — es ist nichts v
 - **„Real-ESRGAN not found"** → Der `realesrgan/`-Ordner fehlt oder liegt falsch. Er muss neben
   `Converter.py` liegen, mit `realesrgan/macos/realesrgan-ncnn-vulkan` (bzw. `windows/…exe`) und
   dem `models/`-Ordner direkt daneben.
-- **KI-Hintergrund: „No onnxruntime backend found"** → Die KI-Engine fehlt. Einmalig ausführen:
-  `python3 -m pip install --break-system-packages "rembg[cpu]"` (Anführungszeichen wichtig).
+- **KI-Hintergrund: „No onnxruntime backend found"** → Die KI-Engine fehlt. Einfach den Installer
+  erneut ausführen — er installiert `rembg[cpu]` isoliert ins `.venv/` des Ordners. (Manuell im
+  Ordner: `.venv/bin/python -m pip install "rembg[cpu]"`, Anführungszeichen wichtig.)
 - **Update-Knopf sagt „No git connection"** → Einmal den Installer laufen lassen; er stellt die
   Git-Verbindung her.
 - **FFMPEG nicht gefunden** → `brew install ffmpeg` (macOS) bzw. FFMPEG über winget (Windows);
